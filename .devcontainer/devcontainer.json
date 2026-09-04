@@ -1,0 +1,26 @@
+{
+  "name": "lumen-bricks",
+  "dockerComposeFile": ["../infra/compose.yaml"],
+  "service": "toolbox",
+  "workspaceFolder": "/workspace",
+  "runServices": ["toolbox"],
+  "overrideCommand": true,
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.target": "wasm32v1-none",
+        "rust-analyzer.check.command": "clippy",
+        "editor.formatOnSave": true,
+        "files.eol": "\n"
+      }
+    }
+  },
+  "remoteUser": "root"
+}

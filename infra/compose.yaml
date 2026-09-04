@@ -1,0 +1,89 @@
+# Stack local de lumen-bricks.
+#
+# Nada arranca solo: cada servicio esta detras de un `profile` para que
+# `docker compose up` no te levante media red por accidente.
+#
+#   docker compose --profile local   up -d     # red Stellar propia (recomendado)
+#   docker compose --profile testnet up -d     # nodo contra testnet publica
+#   docker compose --profile tools   run --rm toolbox
+#
+# Correr desde este directorio (infra/), o con `docker compose -f infra/compose.yaml`.
+
+name: lumen-bricks
+
+services:
+  # ---------------------------------------------------------------------------
+  # Red Stellar completa en tu maquina: Core + RPC + Horizon + friendbot.
+  # Efimera por defecto: `docker compose down -v` y volves a empezar de cero.
+  # ---------------------------------------------------------------------------
+  stellar-local:
+    # Tags disponibles:
+    #   latest  -> protocolo de mainnet hoy       (usar este)
+    #   testing -> protocolo candidato de testnet (probar antes de un upgrade)
+    #   future  -> features de protocolo sin liberar
+    # Para builds 100% reproducibles, fija el digest:
+    #   image: stellar/quickstart@sha256:<digest>
+    image: stellar/quickstart:latest
+    profiles: ["local"]
+    container_name: lumen-stellar-local
+    command: ["--local", "--enable", "core,rpc,horizon"]
+    ports:
+      - "8000:8000"     # HTTP unico: Horizon, RPC y friendbot
+      - "11626:11626"   # Stellar Core, endpoint HTTP de admin
+    volumes:
+      - stellar-local-data:/opt/stellar
+    healthcheck:
+      # friendbot solo responde cuando la red ya produjo su primer ledger
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/friendbot?addr=GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # Nodo local sincronizado contra la testnet publica. Tarda en ponerse al dia;
+  # para el dia a dia conviene `local`.
+  # ---------------------------------------------------------------------------
+  stellar-testnet:
+    image: stellar/quickstart:latest
+    profiles: ["testnet"]
+    container_name: lumen-stellar-testnet
+    command: ["--testnet", "--enable", "core,rpc,horizon"]
+    ports:
+      - "8000:8000"
+      - "11626:11626"
+    volumes:
+      - stellar-testnet-data:/opt/stellar
+
+  # ---------------------------------------------------------------------------
+  # Toolbox: Rust + target WASM + Stellar CLI, sin instalar nada en tu maquina.
+  #   docker compose --profile tools run --rm toolbox
+  #   docker compose --profile tools run --rm toolbox stellar --version
+  # ---------------------------------------------------------------------------
+  toolbox:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.dev
+      args:
+        STELLAR_CLI_VERSION: "28.0.0"
+    profiles: ["tools"]
+    working_dir: /workspace
+    volumes:
+      - ../:/workspace
+      - cargo-registry:/cargo/registry
+      - cargo-git:/cargo/git
+      - stellar-config:/root/.config/stellar
+    environment:
+      # Dentro de la red de compose, el host es el nombre del servicio.
+      STELLAR_RPC_URL: http://stellar-local:8000/rpc
+      STELLAR_HORIZON_URL: http://stellar-local:8000
+      STELLAR_NETWORK_PASSPHRASE: "Standalone Network ; February 2017"
+    stdin_open: true
+    tty: true
+
+volumes:
+  stellar-local-data:
+  stellar-testnet-data:
+  cargo-registry:
+  cargo-git:
+  stellar-config:

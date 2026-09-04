@@ -1,0 +1,10 @@
+# Toolchain fijado para builds reproducibles en todo el equipo y en CI.
+# rustup lo aplica automaticamente al entrar al repo: no hace falta `rustup default`.
+#
+# Requisito Stellar: Rust >= 1.84. Fijamos una version concreta para que el
+# hash del WASM sea identico en cada maquina y en el pipeline.
+[toolchain]
+channel = "1.95.0"
+profile = "minimal"
+components = ["rustfmt", "clippy", "rust-src"]
+targets = ["wasm32v1-none"]

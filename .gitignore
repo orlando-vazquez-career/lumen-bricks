@@ -1,0 +1,42 @@
+# --- Rust / Soroban ---
+/target/
+**/target/
+*.wasm
+!docs/**/*.wasm
+.stellar/
+.soroban/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+.pnpm-store/
+
+# --- Entorno y secretos ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# --- Datos locales de la red ---
+infra/docker/data/
+/data/
+
+# --- Editores y SO ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+*.swp
+
+# --- Logs ---
+*.log
+npm-debug.log*
+pnpm-debug.log*

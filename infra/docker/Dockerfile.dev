@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1.7
+#
+# Toolbox de desarrollo: Rust + target WASM + Stellar CLI, en las versiones
+# exactas del repo. Sirve para trabajar sin instalar nada en la maquina anfitriona
+# y como base del devcontainer.
+#
+#   docker compose --profile tools run --rm toolbox
+
+FROM rust:1.95.0-bookworm
+
+ARG STELLAR_CLI_VERSION=28.0.0
+ARG TARGETARCH
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential pkg-config libssl-dev libdbus-1-dev \
+      ca-certificates curl git jq \
+    && rm -rf /var/lib/apt/lists/*
+
+# Target WASM que acepta la red. NO es wasm32-unknown-unknown.
+RUN rustup target add wasm32v1-none \
+ && rustup component add rustfmt clippy rust-src
+
+# Stellar CLI desde el binario oficial: mucho mas rapido que compilarla y fija
+# la version exacta.
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+      amd64) triple="x86_64-unknown-linux-gnu" ;; \
+      arm64) triple="aarch64-unknown-linux-gnu" ;; \
+      *) echo "arquitectura no soportada: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/stellar.tar.gz \
+      "https://github.com/stellar/stellar-cli/releases/download/v${STELLAR_CLI_VERSION}/stellar-cli-${STELLAR_CLI_VERSION}-${triple}.tar.gz"; \
+    tar -xzf /tmp/stellar.tar.gz -C /usr/local/bin stellar; \
+    rm /tmp/stellar.tar.gz; \
+    stellar --version
+
+WORKDIR /workspace
+
+# Cache de cargo en volumenes nombrados (ver compose.yaml): sin esto, cada
+# `docker compose run` vuelve a bajar todo el registry.
+ENV CARGO_HOME=/cargo \
+    CARGO_TARGET_DIR=/workspace/target-docker
+
+CMD ["bash"]

@@ -1,0 +1,7 @@
+target/
+target-docker/
+node_modules/
+.git/
+artifacts/
+*.wasm
+.env

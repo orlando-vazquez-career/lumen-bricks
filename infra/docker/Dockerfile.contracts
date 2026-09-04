@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1.7
+#
+# Build reproducible de los contratos. Misma entrada -> mismo hash de WASM,
+# en cualquier maquina y en CI. Es la imagen que deberia producir los artefactos
+# que se despliegan a mainnet.
+#
+#   docker build -f infra/docker/Dockerfile.contracts -o type=local,dest=./artifacts .
+#
+# La etapa final es `scratch` a proposito: `-o` exporta solo los .wasm, sin
+# arrastrar el sistema de archivos del builder.
+
+FROM rust:1.95.0-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential pkg-config libssl-dev ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rustup target add wasm32v1-none
+
+WORKDIR /build
+
+# Copiar primero solo los manifiestos: mientras las dependencias no cambien,
+# Docker reusa esta capa y no vuelve a bajar el registry.
+COPY Cargo.toml Cargo.lock* rust-toolchain.toml ./
+COPY contracts/ contracts/
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/build/target \
+    set -eux; \
+    if [ -z "$(find contracts -name Cargo.toml -print -quit)" ]; then \
+      echo "No hay contratos todavia. Nada que compilar."; \
+      mkdir -p /out; \
+    else \
+      cargo build --locked --release --target wasm32v1-none; \
+      mkdir -p /out; \
+      find target/wasm32v1-none/release -maxdepth 1 -name '*.wasm' -exec cp {} /out/ \; ; \
+      for f in /out/*.wasm; do sha256sum "$f"; done; \
+    fi
+
+FROM scratch AS artifacts
+COPY --from=builder /out/ /

@@ -1,0 +1,7 @@
+# Revisores por defecto.
+* @orlando-vazquez-career
+
+# Areas sensibles: cambios aca necesitan revision explicita.
+/contracts/          @orlando-vazquez-career
+/.github/workflows/  @orlando-vazquez-career
+/SECURITY.md         @orlando-vazquez-career

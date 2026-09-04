@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  STELLAR_CLI_VERSION: "28.0.0"
+
+jobs:
+  # Detecta que hay para construir. Mientras el repo este vacio, los jobs
+  # pesados se saltean solos en vez de fallar.
+  changes:
+    name: Que hay para construir
+    runs-on: ubuntu-latest
+    outputs:
+      contracts: ${{ steps.detect.outputs.contracts }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if find contracts -name Cargo.toml -print -quit | grep -q .; then
+            echo "contracts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "contracts=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Todavia no hay contratos. Se saltean los jobs de Rust."
+          fi
+
+  # Que las versiones fijadas en el repo y en la doc no se desincronicen.
+  # Es el unico job que corre siempre, incluso sin codigo.
+  pins:
+    name: Versiones fijadas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: rust-toolchain.toml declara el target WASM correcto
+        run: |
+          grep -q 'wasm32v1-none' rust-toolchain.toml \
+            || { echo "::error::rust-toolchain.toml no declara wasm32v1-none"; exit 1; }
+          if grep -q 'wasm32-unknown-unknown' rust-toolchain.toml; then
+            echo "::error::wasm32-unknown-unknown esta deprecado para Soroban. Usa wasm32v1-none."
+            exit 1
+          fi
+
+      - name: La version de la CLI coincide entre CI y la documentacion
+        run: |
+          docs_ver=$(grep -oE 'stellar-cli@[0-9]+\.[0-9]+\.[0-9]+' docs/setup/linux.md | head -1 | cut -d@ -f2)
+          if [ "$docs_ver" != "$STELLAR_CLI_VERSION" ]; then
+            echo "::error::docs/setup dice $docs_ver pero CI usa $STELLAR_CLI_VERSION"
+            exit 1
+          fi
+          echo "Stellar CLI fijada en $STELLAR_CLI_VERSION en ambos lados."
+
+      - name: El workspace de Cargo es valido
+        run: cargo metadata --format-version 1 --no-deps > /dev/null
+
+  rust:
+    name: Formato, lint y build WASM
+    needs: changes
+    if: needs.changes.outputs.contracts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # rust-toolchain.toml manda: version, componentes y target.
+      - name: Toolchain
+        run: rustup show
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Formato
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Tests
+        run: cargo test --all-features
+
+      - name: Build WASM
+        run: cargo build --locked --release --target wasm32v1-none
+
+      - name: Hash de los artefactos
+        run: |
+          echo "### Artefactos WASM" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          sha256sum target/wasm32v1-none/release/*.wasm >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contracts-wasm
+          path: target/wasm32v1-none/release/*.wasm
+          if-no-files-found: error
+
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: compose.yaml es valido
+        run: docker compose -f infra/compose.yaml config --quiet
+
+      - name: La imagen del toolbox construye
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile.dev
+          push: false
+          load: true
+          tags: lumen-bricks/toolbox:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: El toolbox trae el toolchain correcto
+        run: |
+          docker run --rm lumen-bricks/toolbox:ci bash -eux -c '
+            stellar --version
+            rustc --version
+            rustup target list --installed | grep -qx wasm32v1-none
+          '
+
+      - name: El build reproducible de contratos corre
+        run: |
+          docker build -f infra/docker/Dockerfile.contracts \
+            -o type=local,dest=./artifacts .
+          ls -la artifacts/ || true

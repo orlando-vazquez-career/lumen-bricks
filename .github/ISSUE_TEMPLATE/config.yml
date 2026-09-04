@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentacion de Stellar
+    url: https://developers.stellar.org/
+    about: Preguntas sobre la plataforma, no sobre este repo
+  - name: Reportar una vulnerabilidad
+    url: https://github.com/orlando-vazquez-career/lumen-bricks/security/advisories/new
+    about: No abras un issue publico para temas de seguridad

@@ -1,0 +1,37 @@
+# Workspace Rust de lumen-bricks.
+#
+# Deliberadamente vacio: los contratos se agregan en `contracts/<nombre>/` y se
+# listan en `members`. Las versiones se centralizan aca (`workspace.dependencies`)
+# para que todos los contratos compilen contra el mismo soroban-sdk.
+
+[workspace]
+resolver = "2"
+members = []
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+license = "Apache-2.0"
+repository = "https://github.com/orlando-vazquez-career/lumen-bricks"
+
+[workspace.dependencies]
+soroban-sdk = "27.0.6"
+
+# Perfil de release para WASM: el binario mas chico posible sin perder los
+# chequeos de overflow, que en un contrato de tokenizacion no son opcionales.
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+# Igual que release pero conservando asserts y logs. Para depurar en testnet
+# sin cambiar el perfil de produccion.
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true
