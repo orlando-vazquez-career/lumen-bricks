@@ -19,7 +19,13 @@ Guias completas en [`docs/setup/`](docs/setup/).
 
 ## Ramas
 
-`main` esta protegida. Se trabaja en ramas y se integra por PR.
+Se trabaja en ramas y se integra por PR. `main` **todavia no esta protegida**:
+mientras el equipo sea de una persona, exigir aprobacion bloquearia el merge.
+Cuando se sume gente, activarla:
+
+```sh
+gh api -X PUT repos/orlando-vazquez-career/lumen-bricks/branches/main/protection   -F required_pull_request_reviews[required_approving_review_count]=1   -F required_status_checks[strict]=true   -F 'required_status_checks[contexts][]=Versiones fijadas'   -F 'required_status_checks[contexts][]=Docker'   -F enforce_admins=false   -F restrictions=null
+```
 
 ```
 feat/<tema>      funcionalidad nueva
