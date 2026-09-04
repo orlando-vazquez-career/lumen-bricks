@@ -19,13 +19,33 @@ Guias completas en [`docs/setup/`](docs/setup/).
 
 ## Ramas
 
-Se trabaja en ramas y se integra por PR. `main` **todavia no esta protegida**:
-mientras el equipo sea de una persona, exigir aprobacion bloquearia el merge.
-Cuando se sume gente, activarla:
+`main` esta **protegida**: no se puede pushear directo, ni siquiera siendo
+admin. Todo cambio entra por PR.
 
-```sh
-gh api -X PUT repos/orlando-vazquez-career/lumen-bricks/branches/main/protection   -F required_pull_request_reviews[required_approving_review_count]=1   -F required_status_checks[strict]=true   -F 'required_status_checks[contexts][]=Versiones fijadas'   -F 'required_status_checks[contexts][]=Docker'   -F enforce_admins=false   -F restrictions=null
-```
+Reglas activas:
+
+| Regla | Estado |
+|---|---|
+| Push directo a `main` | bloqueado |
+| Aprobaciones requeridas | 0 — podes mergear tu propio PR |
+| Checks obligatorios | `Que hay para construir`, `Versiones fijadas`, `Docker` |
+| La rama debe estar al dia con `main` | si |
+| Historial lineal (sin merge commits) | si |
+| Force push y borrado de `main` | bloqueados |
+| Conversaciones del PR resueltas | requerido |
+| Aplica a administradores | si |
+
+> Las aprobaciones estan en **0** a proposito: con un equipo de una persona,
+> exigir una aprobacion haria imposible mergear. **Cuando se sume gente,
+> subilo a 1:**
+>
+> ```sh
+> gh api -X PATCH repos/orlando-vazquez-career/lumen-bricks/branches/main/protection/required_pull_request_reviews >   -F required_approving_review_count=1
+> ```
+
+> El job `Formato, lint y build WASM` **no** es obligatorio todavia: se saltea
+> mientras `contracts/` este vacio, y un check saltado como requerido bloquea el
+> merge para siempre. Agregalo a la lista en cuanto exista el primer contrato.
 
 ```
 feat/<tema>      funcionalidad nueva
