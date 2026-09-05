@@ -81,6 +81,11 @@ La API de Soroban se movio mucho. Verifica contra la fuente antes de afirmar:
 - [skills.stellar.org](https://skills.stellar.org/) — catalogo de skills
 - [Raven](https://github.com/stellar-experimental/stellar-raven) — MCP server con
   doc y datos del ecosistema en vivo (`https://raven.stellar.org/mcp`)
+- Skills de [stellar-build](https://github.com/orlando-vazquez-career/stellar-build)
+  copiadas en `.claude/skills/` (34 skills; el router por fase esta en
+  `.claude/skills/SKILL_ROUTER.md`). Se descubren al iniciar la sesion. La de
+  revision de codigo se llama `adversarial-code-review` para no pisar el
+  `/code-review` integrado de Claude Code.
 
 Si tu conocimiento y la doc oficial difieren, gana la doc oficial. Decilo en vez
 de improvisar.
